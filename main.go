@@ -21,13 +21,16 @@ type Post struct {
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path[1:] == "" {
-		title := "Hello World!"
+		posts := getPosts()
 		t := template.New("index.html")
-		t, _ = t.ParseFiles("index.html")
-		t.Execute(w, title)
+		t, err := t.ParseFiles("index.html")
+		must(err)
+		t.Execute(w, posts)
 	} else {
 		f := "posts/" + r.URL.Path[1:] + ".md"
-		fileread, _ := ioutil.ReadFile(f)
+		log.Println(f)
+		fileread, err := ioutil.ReadFile(f)
+		must(err)
 		lines := strings.Split(string(fileread), "\n")
 		title := string(lines[0])
 		date := string(lines[1])
@@ -36,19 +39,21 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		body = string(blackfriday.MarkdownCommon([]byte(body)))
 		post := Post{title, date, summary, body, r.URL.Path[1:]}
 		t := template.New("post.html")
-		t, _ = t.ParseFiles("post.html")
+		t, err = t.ParseFiles("post.html")
+		must(err)
 		t.Execute(w, post)
 	}
 }
 
 func getPosts() []Post {
 	a := []Post{}
-	files, _ := filepath.Glob("posts/*")
-	log.Println(files)
+	files, err := filepath.Glob("posts/*")
+	must(err)
 	for _, f := range files {
 		file := strings.Replace(f, "posts/", "", -1)
 		file = strings.Replace(file, ".md", "", -1)
-		fileread, _ := ioutil.ReadFile(f)
+		fileread, err := ioutil.ReadFile(f)
+		must(err)
 		lines := strings.Split(string(fileread), "\n")
 		title := string(lines[0])
 		date := string(lines[1])
@@ -60,7 +65,14 @@ func getPosts() []Post {
 	return a
 }
 
+func must(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 func main() {
 	http.HandleFunc("/", handleRequest)
+	log.Println("Serving on port :8000")
 	http.ListenAndServe(":8000", nil)
 }
